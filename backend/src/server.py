@@ -44,6 +44,9 @@ async def startup_event():
     print("ZPASSW:", os.environ.get('ZPASSW'))  # Debug print
     await lib.login(os.environ.get('ZLOGIN'), os.environ.get('ZPASSW'))
 
+# Store search results for later use in download
+search_results = {}
+
 @app.get("/api/search")
 async def search(q: str, page: int = 1, count: int = 10):
     try:
@@ -60,6 +63,10 @@ async def search(q: str, page: int = 1, count: int = 10):
                 if not next_results:  # Check if we hit the end
                     break
                 results = next_results
+
+        # Store raw results in memory
+        search_results[page] = results
+
         formatted_results = []
         for book in results:
             formatted_results.append({
@@ -97,6 +104,31 @@ async def get_book(book_id: str):
         if not book:
             raise HTTPException(status_code=404, detail="Book not found")
         return book
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/download/{book_id}")
+async def download_book(book_id: str):
+    try:
+        # Find the book in our stored search results
+        book_to_download = None
+        for results in search_results.values():
+            for book in results:
+                if book.get('id') == book_id:
+                    book_to_download = book
+                    break
+            if book_to_download:
+                break
+                
+        if not book_to_download:
+            raise HTTPException(status_code=404, detail="Book not found in search results")
+            
+        # Get detailed book info including download URL
+        detailed_book = await book_to_download.fetch()
+        if not detailed_book or 'download_url' not in detailed_book:
+            raise HTTPException(status_code=404, detail="Download URL not found")
+            
+        return {"download_url": detailed_book['download_url']}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
