@@ -4,8 +4,8 @@ from zlibrary import AsyncZlib
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
 load_dotenv()
+
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 import asyncio
@@ -47,14 +47,19 @@ async def startup_event():
 @app.get("/api/search")
 async def search(q: str, page: int = 1, count: int = 10):
     try:
+        # create a new paginator for each search
         paginator = await lib.search(q=q, count=count)
         
-        # Navigate to requested page
-        for _ in range(page - 1):
-            await paginator.next()
-            
-        results = paginator.result
+        # Get initial results
+        results = await paginator.next()
         
+        # Navigate to requested page if needed
+        if page > 1:
+            for _ in range(page - 1):
+                next_results = await paginator.next()
+                if not next_results:  # Check if we hit the end
+                    break
+                results = next_results
         formatted_results = []
         for book in results:
             formatted_results.append({
@@ -71,11 +76,17 @@ async def search(q: str, page: int = 1, count: int = 10):
                 "publisher": book.get("publisher")
             })
 
-        return {
+        # Calculate total pages based on total results and count per page
+        total_results = paginator.total
+        total_pages = (total_results + count - 1) // count if total_results > 0 else 0
+        
+        response_data = {
             "results": formatted_results,
-            "total_pages": paginator.total,
+            "total_pages": total_pages,
             "current_page": page
         }
+        print("[DEBUG] Sending response to frontend:", response_data)  # Debug print
+        return response_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -2,6 +2,9 @@ from zlibrary import AsyncZlib, booklists
 import asyncio
 import logging
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 logging.getLogger("zlibrary").addHandler(logging.StreamHandler())
 logging.getLogger("zlibrary").setLevel(logging.DEBUG)
@@ -9,6 +12,8 @@ logging.getLogger("zlibrary").setLevel(logging.DEBUG)
 
 async def main():
     lib = AsyncZlib()
+    print("ZLOGIN:", os.environ.get('ZLOGIN'))  # Debug print
+    print("ZPASSW:", os.environ.get('ZPASSW'))  # Debug print
     await lib.login(os.environ.get('ZLOGIN'), os.environ.get('ZPASSW'))
 
     booklist = await lib.profile.search_public_booklists("test")
