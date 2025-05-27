@@ -12,6 +12,7 @@ const Search = () => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalResults, setTotalResults] = useState(0);
   const { toast } = useToast();
 
   const handleSearch = async (pageNum: number = page) => {
@@ -22,6 +23,7 @@ const Search = () => {
       const response = await searchBooks(searchQuery, pageNum);
       setResults(response.results);
       setTotalPages(response.total_pages);
+      setTotalResults(response.total_results);
       setLastSearchQuery(searchQuery);
     } catch (error) {
       toast({
@@ -46,6 +48,7 @@ const Search = () => {
     if (searchQuery !== lastSearchQuery) {
       setPage(1);
       setTotalPages(0);
+      setTotalResults(0);
       setResults([]);
     }
   }, [searchQuery]);
@@ -88,6 +91,11 @@ const Search = () => {
           </div>
         ) : (
           <>
+            {totalResults > 0 && (
+              <div className="text-sm text-muted-foreground mb-4">
+                Found approximately {totalResults.toLocaleString()} results
+              </div>
+            )}
             <SearchResults results={results} />
             {totalPages > 0 && (
               <div className="flex justify-between items-center mt-4">

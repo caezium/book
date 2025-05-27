@@ -40,8 +40,8 @@ class SearchResult(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    print("ZLOGIN:", os.environ.get('ZLOGIN'))  # Debug print
-    print("ZPASSW:", os.environ.get('ZPASSW'))  # Debug print
+#     print("ZLOGIN:", os.environ.get('ZLOGIN'))  # Debug print
+#     print("ZPASSW:", os.environ.get('ZPASSW'))  # Debug print
     await lib.login(os.environ.get('ZLOGIN'), os.environ.get('ZPASSW'))
 
 # Store search results for later use in download
@@ -53,16 +53,21 @@ async def search(q: str, page: int = 1, count: int = 10):
         # create a new paginator for each search
         paginator = await lib.search(q=q, count=count)
         
-        # Get initial results
-        results = await paginator.next()
+        # Initialize the paginator to get total pages
+        await paginator.init()
         
-        # Navigate to requested page if needed
+        # Get results for the requested page
+        results = []
         if page > 1:
+            # Navigate to the requested page
             for _ in range(page - 1):
                 next_results = await paginator.next()
                 if not next_results:  # Check if we hit the end
                     break
                 results = next_results
+        else:
+            # Get first page results
+            results = await paginator.next()
 
         # Store raw results in memory
         search_results[page] = results
@@ -83,14 +88,18 @@ async def search(q: str, page: int = 1, count: int = 10):
                 "publisher": book.get("publisher")
             })
 
-        # Calculate total pages based on total results and count per page
-        total_results = paginator.total
-        total_pages = (total_results + count - 1) // count if total_results > 0 else 0
+        # Get total pages from the paginator
+        total_pages = paginator.total
+        
+        # Calculate approximate total results (each page typically has 'count' results)
+        # Note: The last page might have fewer results, so this is an approximation
+        total_results = total_pages * count
         
         response_data = {
             "results": formatted_results,
             "total_pages": total_pages,
-            "current_page": page
+            "current_page": page,
+            "total_results": total_results
         }
         print("[DEBUG] Sending response to frontend:", response_data)  # Debug print
         return response_data
